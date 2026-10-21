@@ -23,7 +23,7 @@ export default function NewPostScreen() {
   const [category, setCategory] = useState<FeedCategory>('life');
   const [tagsInput, setTagsInput] = useState('');
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     const cleanTitle = title.trim();
     const cleanText = text.trim();
     const parsedTags = tagsInput
@@ -33,7 +33,7 @@ export default function NewPostScreen() {
 
     if (!cleanTitle || !cleanText) return;
 
-    addPost({
+    await addPost({
       author_id: user?.id ?? 'guest-user',
       author_name: user?.first_name ?? 'Ty',
       title: cleanTitle,
