@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -31,8 +31,12 @@ export default function FeedScreen() {
     return posts.filter((item) => item.category === category);
   }, [category, posts]);
 
-  const handleOpenChat = (post: { id: string; title: string }) => {
-    openConversation(post.id, post.title, 'other-user');
+  useEffect(() => {
+    useFeedStore.getState().fetchPosts();
+  }, []);
+
+  const handleOpenChat = async (post: { id: string; title: string }) => {
+    await openConversation(post.id, post.title, 'other-user');
 
     const created = useChatStore
       .getState()
