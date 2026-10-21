@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Wokół Ciebie",
+    "slug": "wokol-ciebie",
+    "scheme": "wokolciebie",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
