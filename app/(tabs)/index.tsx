@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import { theme } from '../../theme';
 import { strings } from '../../i18n/pl';
+import { useUserStore } from '../../stores/userStore';
 
 type FeedItem = {
   id: string;
@@ -55,53 +56,39 @@ const feedData: FeedItem[] = [
   },
 ];
 
-const categories = [
-  { key: 'all', label: '✨ Wszystko' },
-  { key: 'life', label: '👶 Etapy życia' },
-  { key: 'mind', label: '💬 Dyskusje' },
-  { key: 'hobby', label: '🎲 Hobby' },
-];
-
-const chatSuggestions = {
-  life: ['Cześć! Też jesteśmy z maluchem 👶', 'Którędy planujesz spacer?', 'Czy mogę dołączyć o tej porze?'],
-  mind: ['Cześć! Jaki temat chcesz dziś poruszyć?', 'Ile masz czasu na rozmowę?', 'Chętnie pogadam o tym, co Cię interesuje.'],
-  hobby: ['Hej! Wolisz spacer czy bardziej aktywnie?', 'Masz już ułożony plan?', 'Jesteśmy chętni do wspólnego wyjścia.'],
-};
-
-const messageBubble = (who: string, text: string, time: string) => ({ who, text, time });
-
 export default function FeedScreen() {
-  const [category, setCategory] = useState<string>('all');
+  const user = useUserStore((state) => state.user);
+  const [category, setCategory] = useState<'all' | 'life' | 'mind' | 'hobby'>('all');
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FeedItem | null>(feedData[0]);
 
-  const filteredFeed =
-    category === 'all'
-      ? feedData
-      : feedData.filter((item) => item.category === category);
-
-  const openChat = (item: FeedItem) => {
-    setSelectedItem(item);
-    setChatOpen(true);
-  };
+  const visibleFeed = useMemo(() => {
+    if (category === 'all') return feedData;
+    return feedData.filter((item) => item.category === category);
+  }, [category]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.location}>📍 Oleśnica</Text>
-          <Text style={styles.locationSub}>{strings.home.nearby}</Text>
+          <Text style={styles.locationSub}>{user?.first_name ? `Cześć, ${user.first_name}` : strings.home.nearby}</Text>
         </View>
         <Pressable style={styles.toggleButton} onPress={() => router.push('/new-post')}>
-          <Text style={styles.toggleButtonText}>Nowy post</Text>
+          <Text style={styles.toggleButtonText}>{strings.home.newPost}</Text>
         </Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
-        {categories.map((item) => (
+        {[
+          { key: 'all', label: strings.feed.all },
+          { key: 'life', label: strings.feed.life },
+          { key: 'mind', label: strings.feed.mind },
+          { key: 'hobby', label: strings.feed.hobby },
+        ].map((item) => (
           <Pressable
             key={item.key}
-            onPress={() => setCategory(item.key)}
+            onPress={() => setCategory(item.key as 'all' | 'life' | 'mind' | 'hobby')}
             style={[styles.categoryChip, category === item.key && styles.categoryChipActive]}
           >
             <Text style={[styles.categoryText, category === item.key && styles.categoryTextActive]}>
@@ -112,7 +99,7 @@ export default function FeedScreen() {
       </ScrollView>
 
       <ScrollView style={styles.feedList} contentContainerStyle={{ paddingBottom: 120 }}>
-        {filteredFeed.map((item) => (
+        {visibleFeed.map((item) => (
           <View key={item.id} style={styles.card}>
             <Text style={styles.cardMeta}>{item.emoji} {item.title} • {item.distance} m stąd • {item.when}</Text>
             <Text style={styles.cardText}>{item.text}</Text>
@@ -122,8 +109,8 @@ export default function FeedScreen() {
               ))}
             </View>
             <View style={styles.cardFooter}>
-              <Pressable onPress={() => openChat(item)} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Napisz</Text>
+              <Pressable onPress={() => { setSelectedItem(item); setChatOpen(true); }} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>{strings.feed.write}</Text>
               </Pressable>
             </View>
           </View>
@@ -131,7 +118,7 @@ export default function FeedScreen() {
       </ScrollView>
 
       <Pressable style={styles.fab} onPress={() => router.push('/new-post')}>
-        <Text style={styles.fabText}>＋ Dodaj co robisz / Kogo szukasz</Text>
+        <Text style={styles.fabText}>{strings.home.addPost}</Text>
       </Pressable>
 
       {chatOpen && selectedItem ? (
@@ -139,11 +126,11 @@ export default function FeedScreen() {
           <View style={styles.chatPanel}>
             <View style={styles.chatHeader}>
               <Pressable onPress={() => setChatOpen(false)}>
-                <Text style={styles.backText}>← Wróć</Text>
+                <Text style={styles.backText}>← {strings.common.back}</Text>
               </Pressable>
               <Text style={styles.chatName}>{selectedItem.title}</Text>
               <Pressable onPress={() => setChatOpen(false)}>
-                <Text style={styles.reportText}>⚠️ Zgłoś</Text>
+                <Text style={styles.reportText}>{strings.common.report}</Text>
               </Pressable>
             </View>
 
@@ -154,9 +141,9 @@ export default function FeedScreen() {
 
             <View style={styles.timeline}>
               {[
-                messageBubble('System', 'Początek rozmowy z użytkownikiem. Spotykajcie się w miejscach publicznych. 🛡️', '08:42'),
-                messageBubble('Ty', 'Cześć! Chętnie dołączę.', '08:43'),
-                messageBubble(selectedItem.title, 'Super! Widzimy się w parku przy wejściu.', '08:44'),
+                { who: 'System', text: 'Początek rozmowy z użytkownikiem. Spotykajcie się w miejscach publicznych. 🛡️', time: '08:42' },
+                { who: 'Ty', text: 'Cześć! Chętnie dołączę.', time: '08:43' },
+                { who: selectedItem.title, text: 'Super! Widzimy się w parku przy wejściu.', time: '08:44' },
               ].map((message, index) => (
                 <View key={`${message.who}-${index}`} style={styles.timelineRow}>
                   <Text style={styles.timelineBadge}>{message.who === 'Ty' ? '🙂' : message.who === 'System' ? '🛡️' : '💬'}</Text>
@@ -169,20 +156,12 @@ export default function FeedScreen() {
               ))}
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickPills}>
-              {(chatSuggestions[selectedItem.category as keyof typeof chatSuggestions] ?? chatSuggestions.hobby).map((item) => (
-                <Pressable key={item} style={styles.quickPill}>
-                  <Text style={styles.quickPillText}>{item}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
             <View style={styles.chatActions}>
               <Pressable style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>📍 Udostępnij pinezkę</Text>
+                <Text style={styles.actionButtonText}>{strings.common.sharePin}</Text>
               </Pressable>
               <Pressable style={styles.actionButtonPrimary}>
-                <Text style={styles.actionButtonPrimaryText}>✅ Potwierdź spotkanie</Text>
+                <Text style={styles.actionButtonPrimaryText}>{strings.common.confirm}</Text>
               </Pressable>
             </View>
           </View>
@@ -417,22 +396,6 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: 11,
     marginTop: 6,
-  },
-  quickPills: {
-    marginTop: 12,
-    paddingVertical: 8,
-  },
-  quickPill: {
-    backgroundColor: '#f2ece4',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-  },
-  quickPillText: {
-    color: theme.colors.text,
-    fontWeight: '700',
-    fontSize: 12,
   },
   chatActions: {
     marginTop: 12,
