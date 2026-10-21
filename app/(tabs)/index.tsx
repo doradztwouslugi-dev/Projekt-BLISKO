@@ -8,72 +8,54 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+
 import { theme } from '../../theme';
 import { strings } from '../../i18n/pl';
 import { useUserStore } from '../../stores/userStore';
+import { useFeedStore } from '../../stores/feedStore';
+import { useChatStore } from '../../stores/chatStore';
 
-type FeedItem = {
-  id: string;
-  emoji: string;
-  title: string;
-  distance: number;
-  when: string;
-  text: string;
-  tags: string[];
-  category: 'life' | 'mind' | 'hobby';
-};
-
-const feedData: FeedItem[] = [
-  {
-    id: '1',
-    emoji: '👶',
-    title: 'Spacer z wózkiem',
-    distance: 300,
-    when: 'Dzisiaj, 12:00',
-    text: 'Ania: Spacer wokół stawów, synek 3 miesiące. Szukam pogaduszek z inną mamą, żeby nie zwariować w domu.',
-    tags: ['Noworodek', 'Niemowlę'],
-    category: 'life',
-  },
-  {
-    id: '2',
-    emoji: '♟️',
-    title: 'Szachy + Geopolityka',
-    distance: 1200,
-    when: 'Dzisiaj, 17:00',
-    text: 'Tomek: Szukam kogoś na 2-3 partie w parku miejskim. Chętnie pogadam o geopolitce i nowych książkach.',
-    tags: ['Szachy', 'Geopolityka'],
-    category: 'mind',
-  },
-  {
-    id: '3',
-    emoji: '🐕',
-    title: 'Wybieg dla psów',
-    distance: 500,
-    when: 'Za 30 minut',
-    text: 'Kamil: Mój border collie roznosi mieszkanie. Idziemy na wybieg w parku, chętnie poznamy inne psiaki.',
-    tags: ['Spacery z psem'],
-    category: 'hobby',
-  },
-];
+type FeedCategory = 'all' | 'life' | 'mind' | 'hobby';
 
 export default function FeedScreen() {
   const user = useUserStore((state) => state.user);
-  const [category, setCategory] = useState<'all' | 'life' | 'mind' | 'hobby'>('all');
+  const posts = useFeedStore((state) => state.posts);
+  const openConversation = useChatStore((state) => state.openConversation);
+
+  const [category, setCategory] = useState<FeedCategory>('all');
   const [chatOpen, setChatOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<FeedItem | null>(feedData[0]);
+  const [selectedPost, setSelectedPost] = useState<(typeof posts)[number] | null>(posts[0] ?? null);
 
   const visibleFeed = useMemo(() => {
-    if (category === 'all') return feedData;
-    return feedData.filter((item) => item.category === category);
-  }, [category]);
+    if (category === 'all') return posts;
+    return posts.filter((item) => item.category === category);
+  }, [category, posts]);
+
+  const handleOpenChat = (post: { id: string; title: string }) => {
+    openConversation(post.id, post.title, 'other-user');
+
+    const created = useChatStore
+      .getState()
+      .conversations.find((conversation) => conversation.post_id === post.id);
+
+    if (created) {
+      router.push({
+        pathname: '/chat/[id]',
+        params: { id: created.id },
+      });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.location}>📍 Oleśnica</Text>
-          <Text style={styles.locationSub}>{user?.first_name ? `Cześć, ${user.first_name}` : strings.home.nearby}</Text>
+          <Text style={styles.locationSub}>
+            {user?.first_name ? `Cześć, ${user.first_name}` : strings.home.nearby}
+          </Text>
         </View>
+
         <Pressable style={styles.toggleButton} onPress={() => router.push('/new-post')}>
           <Text style={styles.toggleButtonText}>{strings.home.newPost}</Text>
         </Pressable>
@@ -88,10 +70,12 @@ export default function FeedScreen() {
         ].map((item) => (
           <Pressable
             key={item.key}
-            onPress={() => setCategory(item.key as 'all' | 'life' | 'mind' | 'hobby')}
+            onPress={() => setCategory(item.key as FeedCategory)}
             style={[styles.categoryChip, category === item.key && styles.categoryChipActive]}
           >
-            <Text style={[styles.categoryText, category === item.key && styles.categoryTextActive]}>
+            <Text
+              style={[styles.categoryText, category === item.key && styles.categoryTextActive]}
+            >
               {item.label}
             </Text>
           </Pressable>
@@ -101,15 +85,29 @@ export default function FeedScreen() {
       <ScrollView style={styles.feedList} contentContainerStyle={{ paddingBottom: 120 }}>
         {visibleFeed.map((item) => (
           <View key={item.id} style={styles.card}>
-            <Text style={styles.cardMeta}>{item.emoji} {item.title} • {item.distance} m stąd • {item.when}</Text>
+            <Text style={styles.cardMeta}>
+              {item.title} • {item.distance_m ?? 0} m stąd •{' '}
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+
             <Text style={styles.cardText}>{item.text}</Text>
+
             <View style={styles.tagRow}>
               {item.tags.map((tag) => (
-                <Text key={tag} style={styles.tagPill}>{tag}</Text>
+                <Text key={tag} style={styles.tagPill}>
+                  {tag}
+                </Text>
               ))}
             </View>
+
             <View style={styles.cardFooter}>
-              <Pressable onPress={() => { setSelectedItem(item); setChatOpen(true); }} style={styles.primaryButton}>
+              <Pressable
+                onPress={() => handleOpenChat({ id: item.id, title: item.title })}
+                style={styles.primaryButton}
+              >
                 <Text style={styles.primaryButtonText}>{strings.feed.write}</Text>
               </Pressable>
             </View>
@@ -121,32 +119,47 @@ export default function FeedScreen() {
         <Text style={styles.fabText}>{strings.home.addPost}</Text>
       </Pressable>
 
-      {chatOpen && selectedItem ? (
+      {chatOpen && selectedPost ? (
         <View style={styles.chatOverlay}>
           <View style={styles.chatPanel}>
             <View style={styles.chatHeader}>
               <Pressable onPress={() => setChatOpen(false)}>
                 <Text style={styles.backText}>← {strings.common.back}</Text>
               </Pressable>
-              <Text style={styles.chatName}>{selectedItem.title}</Text>
+
+              <Text style={styles.chatName}>{selectedPost.title}</Text>
+
               <Pressable onPress={() => setChatOpen(false)}>
                 <Text style={styles.reportText}>{strings.common.report}</Text>
               </Pressable>
             </View>
 
             <View style={styles.previewBox}>
-              <Text style={styles.previewMeta}>{selectedItem.emoji} {selectedItem.title} • {selectedItem.distance} m stąd • {selectedItem.when}</Text>
-              <Text style={styles.previewText}>{selectedItem.text}</Text>
+              <Text style={styles.previewMeta}>
+                {selectedPost.title} • {selectedPost.distance_m ?? 0} m stąd
+              </Text>
+              <Text style={styles.previewText}>{selectedPost.text}</Text>
             </View>
 
             <View style={styles.timeline}>
               {[
-                { who: 'System', text: 'Początek rozmowy z użytkownikiem. Spotykajcie się w miejscach publicznych. 🛡️', time: '08:42' },
+                {
+                  who: 'System',
+                  text: 'Początek rozmowy z użytkownikiem. Spotykajcie się w miejscach publicznych. 🛡️',
+                  time: '08:42',
+                },
                 { who: 'Ty', text: 'Cześć! Chętnie dołączę.', time: '08:43' },
-                { who: selectedItem.title, text: 'Super! Widzimy się w parku przy wejściu.', time: '08:44' },
+                {
+                  who: selectedPost.author_name,
+                  text: 'Super! Widzimy się w parku przy wejściu.',
+                  time: '08:44',
+                },
               ].map((message, index) => (
                 <View key={`${message.who}-${index}`} style={styles.timelineRow}>
-                  <Text style={styles.timelineBadge}>{message.who === 'Ty' ? '🙂' : message.who === 'System' ? '🛡️' : '💬'}</Text>
+                  <Text style={styles.timelineBadge}>
+                    {message.who === 'Ty' ? '🙂' : message.who === 'System' ? '🛡️' : '💬'}
+                  </Text>
+
                   <View style={styles.timelineBubble}>
                     <Text style={styles.timelineWho}>{message.who}</Text>
                     <Text style={styles.timelineText}>{message.text}</Text>
@@ -160,6 +173,7 @@ export default function FeedScreen() {
               <Pressable style={styles.actionButton}>
                 <Text style={styles.actionButtonText}>{strings.common.sharePin}</Text>
               </Pressable>
+
               <Pressable style={styles.actionButtonPrimary}>
                 <Text style={styles.actionButtonPrimaryText}>{strings.common.confirm}</Text>
               </Pressable>
