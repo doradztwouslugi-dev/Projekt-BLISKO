@@ -1,22 +1,26 @@
-import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useUserStore } from '../stores/userStore';
 
 export async function bootstrapAuth() {
   const { data, error } = await supabase.auth.getSession();
-  if (error) return;
+  if (error) throw error;
 
   const sessionUser = data.session?.user;
   if (!sessionUser) {
     useUserStore.getState().clearUser();
-    return;
+    return null;
   }
 
-  useUserStore.getState().setUser({
+  const authUser = {
     id: sessionUser.id,
-    email: sessionUser.email,
+    email: sessionUser.email ?? null,
     first_name: sessionUser.user_metadata?.full_name ?? null,
-  });
+    onboarding_completed: !!sessionUser.user_metadata?.onboarded,
+  };
+
+  useUserStore.getState().setUser(authUser);
+  useUserStore.getState().setSession(data.session ?? null);
+  return data.session;
 }
 
 export async function signInWithGoogle() {
@@ -61,13 +65,24 @@ export async function completeOnboarding(payload: {
   });
 
   if (error) throw error;
+
+  const user = useUserStore.getState().user;
+  if (user) {
+    useUserStore.getState().setUser({ ...user, onboarding_completed: true });
+  }
 }
 
-export async function setHomeArea(lat: number, lng: number) {
-  const { error } = await supabase.rpc('update_my_location', {
+export async function setHomeArea(lat: number, lng: number, radiusM = 2000, label?: string) {
+  const { error } = await supabase.rpc('set_home_area', {
     p_lat: lat,
     p_lng: lng,
+    p_radius_m: radiusM,
+    p_label: label ?? null,
   });
 
-  if (error) throw error;
+  if (error) {
+    const fallback = await supabase.rpc('update_my_location', { p_lat: lat, p_lng: lng });
+    if (fallback.error) throw fallback.error;
+    return;
+  }
 }
