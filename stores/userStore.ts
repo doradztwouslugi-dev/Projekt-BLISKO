@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export type AuthUser = {
   id: string;
