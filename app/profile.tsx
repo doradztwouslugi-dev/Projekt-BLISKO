@@ -1,40 +1,95 @@
-import { SafeAreaView, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import {
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import { strings } from '../../i18n/pl';
+import { useUserStore } from '../../stores/userStore';
 import { theme } from '../../theme';
 
-const tags = ['Noworodek', 'Rozwój osobisty', 'Psychologia', 'Planszówki'];
+const mockTags = ['Noworodek', 'Praca zdalna', 'Psychologia', 'Spacer z psem'];
 
 export default function ProfileScreen() {
+  const user = useUserStore((state) => state.user);
+
+  const firstName = user?.first_name ?? 'Twoja osoba';
+  const gender = user?.gender ?? 'O';
+  const birthYear = user?.birth_year ?? 1995;
+  const radius = user?.home_radius_km ?? 5;
+  const onboardingCompleted = user?.onboarding_completed ?? false;
+
+  const genderLabel =
+    gender === 'F' ? 'Kobieta' : gender === 'M' ? 'Mężczyzna' : 'Inna';
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Profil</Text>
-        <Text style={styles.subtitle}>Cześć, Ania 👋</Text>
+        <View style={styles.headerCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{firstName.slice(0, 1).toUpperCase()}</Text>
+          </View>
 
-        <Pressable style={styles.statusCard}>
-          <Text style={styles.statusLabel}>🟢 Szukam towarzystwa</Text>
-          <Text style={styles.muted}>Dostajesz powiadomienia z okolicy</Text>
-        </Pressable>
-
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>🌙 Godziny ciszy</Text>
-          <Text style={styles.switchPill}>ON</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{strings.profile.title}</Text>
+            <Text style={styles.name}>{firstName}</Text>
+            <Text style={styles.subtle}>
+              {onboardingCompleted ? 'Onboarding zakończony' : 'Wymaga dokończenia'}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>🤝 Dopasowanie do tej samej płci</Text>
-          <Text style={styles.switchPill}>ON</Text>
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>{strings.profile.lookingForCompany}</Text>
+          <View style={styles.infoGrid}>
+            <View style={styles.infoPill}>
+              <Text style={styles.infoLabel}>Płeć</Text>
+              <Text style={styles.infoValue}>{genderLabel}</Text>
+            </View>
+
+            <View style={styles.infoPill}>
+              <Text style={styles.infoLabel}>Rok urodzenia</Text>
+              <Text style={styles.infoValue}>{birthYear}</Text>
+            </View>
+
+            <View style={styles.infoPill}>
+              <Text style={styles.infoLabel}>Promień</Text>
+              <Text style={styles.infoValue}>{radius} km</Text>
+            </View>
+
+            <View style={styles.infoPill}>
+              <Text style={styles.infoLabel}>Tryb</Text>
+              <Text style={styles.infoValue}>Wspólne spacery</Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Moje zainteresowania</Text>
-        <View style={styles.tagsWrap}>
-          {tags.map((tag) => (
-            <Text key={tag} style={styles.tag}>#{tag}</Text>
-          ))}
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>{strings.profile.interests}</Text>
+          <View style={styles.tagRow}>
+            {mockTags.map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        <Text style={styles.notice}>🔒 Posty ze światopoglądowymi tagami widzą tylko osoby, które same je zaznaczyły.</Text>
-        <Pressable style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>🔔 Zasymuluj powiadomienie push</Text>
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>{strings.profile.quietHours}</Text>
+          <Text style={styles.valueText}>22:00–08:00</Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>{strings.profile.sameGender}</Text>
+          <Text style={styles.valueText}>Tak, preferuję podobne doświadczenia.</Text>
+        </View>
+
+        <Pressable style={styles.pushButton}>
+          <Text style={styles.pushButtonText}>{strings.profile.pushPreview}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -47,97 +102,121 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
+    padding: 20,
     paddingBottom: 100,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.colors.text,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: theme.colors.muted,
-    marginBottom: 18,
-  },
-  statusCard: {
-    backgroundColor: '#2bb673',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-  },
-  statusLabel: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  muted: {
-    color: '#e5f9ee',
-    marginTop: 4,
-  },
-  row: {
+  headerCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 14,
     backgroundColor: theme.colors.surface,
-    borderRadius: 18,
+    borderRadius: 24,
+    padding: 18,
     borderWidth: 1,
     borderColor: theme.colors.line,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  rowLabel: {
-    color: theme.colors.text,
-    fontWeight: '700',
-    maxWidth: '75%',
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  switchPill: {
-    backgroundColor: '#f0e4d6',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  avatarText: {
+    color: '#fff',
     fontWeight: '800',
+    fontSize: 24,
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  name: {
     color: theme.colors.text,
+    fontSize: 26,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  subtle: {
+    color: theme.colors.muted,
+    marginTop: 4,
+    fontSize: 13,
+  },
+  infoCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
   },
   sectionTitle: {
-    marginTop: 18,
-    marginBottom: 12,
-    color: theme.colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 12,
   },
-  tagsWrap: {
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  infoPill: {
+    backgroundColor: '#f7f1ea',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: '46%',
+    flex: 1,
+  },
+  infoLabel: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  infoValue: {
+    color: theme.colors.text,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   tag: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#f6f1ed',
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.line,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  tagText: {
     color: theme.colors.text,
     fontWeight: '700',
+    fontSize: 12,
   },
-  notice: {
-    marginTop: 18,
-    color: theme.colors.muted,
-    fontSize: 13,
-    lineHeight: 20,
+  valueText: {
+    color: theme.colors.text,
+    fontSize: 15,
+    lineHeight: 22,
   },
-  primaryButton: {
+  pushButton: {
     backgroundColor: theme.colors.primary,
     borderRadius: 999,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 8,
   },
-  primaryButtonText: {
+  pushButtonText: {
     color: '#fff',
     fontWeight: '800',
+    fontSize: 15,
   },
 });
