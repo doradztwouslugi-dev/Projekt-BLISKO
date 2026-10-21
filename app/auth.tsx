@@ -61,8 +61,8 @@ export default function AuthScreen() {
           setSession(session);
         }
 
-        Alert.alert('Sukces', 'Konto utworzone. Możesz się zalogować.');
-        setMode('login');
+        Alert.alert('Sukces', 'Konto utworzone. Teraz przejdź do konfiguracji profilu.');
+        router.replace('/onboarding');
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
@@ -87,7 +87,7 @@ export default function AuthScreen() {
           setSession(session);
         }
 
-        router.replace('/(tabs)');
+        router.replace('/onboarding');
       }
     } catch (error: any) {
       Alert.alert('Błąd', error?.message ?? 'Nie udało się zalogować.');
