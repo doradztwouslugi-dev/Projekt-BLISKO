@@ -62,6 +62,7 @@ export default function ChatDetailScreen() {
         ) : (
           messages.map((message) => {
             const isMine = message.sender_id === 'me';
+
             return (
               <View
                 key={message.id}
@@ -79,6 +80,7 @@ export default function ChatDetailScreen() {
                   <Text style={[styles.messageText, isMine && styles.messageTextMine]}>
                     {message.text}
                   </Text>
+
                   <Text style={[styles.time, isMine && styles.timeMine]}>
                     {new Date(message.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -99,6 +101,7 @@ export default function ChatDetailScreen() {
           placeholder="Napisz wiadomość..."
           style={styles.input}
         />
+
         <Pressable
           onPress={handleSend}
           disabled={!draft.trim()}
