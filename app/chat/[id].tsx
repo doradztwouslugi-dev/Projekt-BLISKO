@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -23,6 +23,12 @@ export default function ChatDetailScreen() {
   const conversation = conversations.find((item) => item.id === id);
   const messages = conversation ? getMessages(conversation.id) : [];
 
+  useEffect(() => {
+    if (id) {
+      useChatStore.getState().fetchMessagesForConversation(id as string);
+    }
+  }, [id]);
+
   const [draft, setDraft] = useState('');
 
   if (!conversation) {
@@ -38,9 +44,10 @@ export default function ChatDetailScreen() {
     );
   }
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!draft.trim()) return;
-    sendMessage(conversation.id, 'me', draft.trim());
+
+    await sendMessage(conversation.id, 'me', draft.trim());
     setDraft('');
   };
 
