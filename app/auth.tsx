@@ -19,6 +19,7 @@ export default function AuthScreen() {
   const router = useRouter();
   const setUser = useUserStore((state) => state.setUser);
   const setSession = useUserStore((state) => state.setSession);
+
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
