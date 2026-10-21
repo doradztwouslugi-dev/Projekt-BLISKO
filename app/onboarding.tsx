@@ -113,7 +113,7 @@ export default function OnboardingScreen() {
             <Pressable
               style={[styles.primaryButton, !canContinueStepTwo && styles.primaryButtonDisabled]}
               disabled={!canContinueStepTwo}
-              onPress={() => router.push('/(tabs)')}
+              onPress={() => router.replace('/(tabs)')}
             >
               <Text style={styles.primaryButtonText}>{strings.common.next}</Text>
             </Pressable>
@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
             <Pressable
               style={[styles.primaryButton, !canContinueStepThree && styles.primaryButtonDisabled]}
               disabled={!canContinueStepThree}
-              onPress={() => router.push('/(tabs)')}
+              onPress={() => router.replace('/(tabs)')}
             >
               <Text style={styles.primaryButtonText}>{strings.onboarding.loginButton}</Text>
             </Pressable>
