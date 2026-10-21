@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Pressable,
@@ -8,12 +9,16 @@ import {
   View,
 } from 'react-native';
 
-import { useChatStore } from '../../stores/chatStore';
-import { theme } from '../../theme';
+import { useChatStore } from '../stores/chatStore';
+import { theme } from '../theme';
 
 export default function ChatsScreen() {
   const router = useRouter();
   const conversations = useChatStore((state) => state.conversations);
+
+  useEffect(() => {
+    useChatStore.getState().fetchConversations();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -27,20 +32,32 @@ export default function ChatsScreen() {
             <Pressable
               key={conversation.id}
               style={styles.card}
-              onPress={() => router.push({ pathname: '/chat/[id]', params: { id: conversation.id } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/chat/[id]',
+                  params: { id: conversation.id },
+                })
+              }
             >
               <View style={styles.avatarWrap}>
-                <Text style={styles.avatarText}>{conversation.title?.slice(0, 1).toUpperCase() ?? '?'}</Text>
+                <Text style={styles.avatarText}>
+                  {conversation.title?.slice(0, 1).toUpperCase() ?? '?'}
+                </Text>
               </View>
 
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle}>{conversation.title ?? 'Rozmowa'}</Text>
                 <Text style={styles.cardPreview}>
-                  {conversation.participant_ids.length > 0 ? `Uczestnicy: ${conversation.participant_ids.length}` : 'Rozmowa'}
+                  {conversation.participant_ids.length > 0
+                    ? `Uczestnicy: ${conversation.participant_ids.length}`
+                    : 'Rozmowa'}
                 </Text>
                 <Text style={styles.cardTime}>
                   {conversation.last_message_at
-                    ? new Date(conversation.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    ? new Date(conversation.last_message_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     : 'now'}
                 </Text>
               </View>
