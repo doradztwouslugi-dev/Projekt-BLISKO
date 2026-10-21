@@ -7,9 +7,9 @@ import {
   View,
 } from 'react-native';
 
-import { strings } from '../../i18n/pl';
-import { useUserStore } from '../../stores/userStore';
-import { theme } from '../../theme';
+import { strings } from '../i18n/pl';
+import { useUserStore } from '../stores/userStore';
+import { theme } from '../theme';
 
 const mockTags = ['Noworodek', 'Praca zdalna', 'Psychologia', 'Spacer z psem'];
 
@@ -17,10 +17,15 @@ export default function ProfileScreen() {
   const user = useUserStore((state) => state.user);
 
   const firstName = user?.first_name ?? 'Twoja osoba';
+  const lastName = user?.last_name ?? '';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ');
   const gender = user?.gender ?? 'O';
   const birthYear = user?.birth_year ?? 1995;
   const radius = user?.home_radius_km ?? 5;
   const onboardingCompleted = user?.onboarding_completed ?? false;
+  const email = user?.email ?? 'brak danych';
+  const city = user?.city ?? 'Nie podano';
+  const bio = user?.bio ?? 'Brak opisu';
 
   const genderLabel =
     gender === 'F' ? 'Kobieta' : gender === 'M' ? 'Mężczyzna' : 'Inna';
@@ -35,7 +40,7 @@ export default function ProfileScreen() {
 
           <View style={styles.headerText}>
             <Text style={styles.title}>{strings.profile.title}</Text>
-            <Text style={styles.name}>{firstName}</Text>
+            <Text style={styles.name}>{fullName}</Text>
             <Text style={styles.subtle}>
               {onboardingCompleted ? 'Onboarding zakończony' : 'Wymaga dokończenia'}
             </Text>
@@ -65,6 +70,13 @@ export default function ProfileScreen() {
               <Text style={styles.infoValue}>Wspólne spacery</Text>
             </View>
           </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>Dane kontaktowe</Text>
+          <Text style={styles.valueText}>{email}</Text>
+          <Text style={styles.valueText}>{city}</Text>
+          <Text style={styles.valueText}>{bio}</Text>
         </View>
 
         <View style={styles.infoCard}>
