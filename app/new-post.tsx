@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Pressable,
@@ -8,57 +9,39 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
 
-import { theme } from '../theme';
 import { useFeedStore, type FeedCategory } from '../stores/feedStore';
 import { useUserStore } from '../stores/userStore';
-
-const categories: Array<{ key: FeedCategory; label: string }> = [
-  { key: 'life', label: 'Etapy życia' },
-  { key: 'mind', label: 'Dyskusje' },
-  { key: 'hobby', label: 'Hobby' },
-];
-
-const suggestedTags = [
-  'Noworodek',
-  'Niemowlę',
-  'Praca zdalna',
-  'Nowy w mieście',
-  'Rozwój',
-  'Psychologia',
-  'Szachy',
-  'Spacery z psem',
-];
+import { theme } from '../theme';
 
 export default function NewPostScreen() {
   const user = useUserStore((state) => state.user);
   const addPost = useFeedStore((state) => state.addPost);
 
-  const [category, setCategory] = useState<FeedCategory>('life');
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Noworodek']);
+  const [category, setCategory] = useState<FeedCategory>('life');
+  const [tagsInput, setTagsInput] = useState('');
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag],
-    );
-  };
+  const handlePublish = () => {
+    const cleanTitle = title.trim();
+    const cleanText = text.trim();
+    const parsedTags = tagsInput
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
 
-  const handleSave = () => {
-    if (!text.trim()) return;
+    if (!cleanTitle || !cleanText) return;
 
     addPost({
-      author_id: user?.id ?? 'local-user',
+      author_id: user?.id ?? 'guest-user',
       author_name: user?.first_name ?? 'Ty',
-      title: title.trim() || 'Nowy wpis',
-      text: text.trim(),
-      tags: selectedTags,
+      title: cleanTitle,
+      text: cleanText,
+      tags: parsedTags.length > 0 ? parsedTags : ['Nowy post'],
       category,
       location_label: 'Oleśnica',
-      distance_m: 400,
-      created_at: new Date().toISOString(),
+      distance_m: 300,
     });
 
     router.back();
@@ -66,72 +49,78 @@ export default function NewPostScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
+
         <Text style={styles.title}>Nowy post</Text>
 
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.label}>Tytuł</Text>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="np. Szukam towarzysza do spaceru"
+          style={styles.input}
+          maxLength={80}
+        />
+
         <Text style={styles.label}>Kategoria</Text>
+
         <View style={styles.categoryRow}>
-          {categories.map((item) => (
+          {(['life', 'mind', 'hobby'] as FeedCategory[]).map((item) => (
             <Pressable
-              key={item.key}
+              key={item}
+              onPress={() => setCategory(item)}
               style={[
-                styles.categoryButton,
-                category === item.key && styles.categoryButtonActive,
+                styles.categoryChip,
+                category === item && styles.categoryChipActive,
               ]}
-              onPress={() => setCategory(item.key)}
             >
               <Text
                 style={[
-                  styles.categoryText,
-                  category === item.key && styles.categoryTextActive,
+                  styles.categoryChipText,
+                  category === item && styles.categoryChipTextActive,
                 ]}
               >
-                {item.label}
+                {item}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Tytuł</Text>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="np. Spacer z wózkiem"
-          style={styles.input}
-        />
-
         <Text style={styles.label}>Treść</Text>
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="Opisz, czego szukasz albo co chcesz zrobić..."
+          placeholder="Napisz, czego szukasz lub z kim chcesz się spotkać..."
+          style={[styles.input, styles.textArea]}
           multiline
           numberOfLines={6}
-          style={[styles.input, styles.textArea]}
+          textAlignVertical="top"
         />
 
         <Text style={styles.label}>Tagi</Text>
-        <View style={styles.tagWrap}>
-          {suggestedTags.map((tag) => {
-            const active = selectedTags.includes(tag);
-            return (
-              <Pressable
-                key={tag}
-                onPress={() => toggleTag(tag)}
-                style={[styles.tag, active && styles.tagActive]}
-              >
-                <Text style={[styles.tagText, active && styles.tagTextActive]}>{tag}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <TextInput
+          value={tagsInput}
+          onChangeText={setTagsInput}
+          placeholder="np. spacery, mamusie, park"
+          style={styles.input}
+        />
 
         <Pressable
-          onPress={handleSave}
-          disabled={!text.trim()}
-          style={[styles.saveButton, !text.trim() && styles.saveButtonDisabled]}
+          onPress={handlePublish}
+          disabled={!title.trim() || !text.trim()}
+          style={[
+            styles.publishButton,
+            (!title.trim() || !text.trim()) && styles.publishButtonDisabled,
+          ]}
         >
-          <Text style={styles.saveText}>Opublikuj</Text>
+          <Text style={styles.publishButtonText}>Opublikuj</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -143,94 +132,85 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  content: {
-    padding: 20,
-    paddingBottom: 80,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: theme.colors.text,
-    marginBottom: 20,
-  },
-  label: {
-    color: theme.colors.muted,
-    fontSize: 13,
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  categoryRow: {
+  header: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.line,
     backgroundColor: theme.colors.surface,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.line,
   },
-  categoryButtonActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  categoryText: {
+  backText: {
     color: theme.colors.text,
+    fontSize: 24,
     fontWeight: '700',
   },
-  categoryTextActive: {
-    color: '#fff',
+  title: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  label: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    marginTop: 12,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: theme.colors.surface,
     borderColor: theme.colors.line,
+    borderWidth: 1,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: theme.colors.text,
     fontSize: 15,
   },
   textArea: {
-    minHeight: 120,
-    textAlignVertical: 'top',
+    minHeight: 140,
+    paddingTop: 14,
   },
-  tagWrap: {
+  categoryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
   },
-  tag: {
-    backgroundColor: '#f3eadf',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  categoryChip: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.line,
     borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  tagActive: {
-    backgroundColor: theme.colors.accent,
+  categoryChipActive: {
+    backgroundColor: theme.colors.text,
   },
-  tagText: {
+  categoryChipText: {
     color: theme.colors.text,
     fontWeight: '700',
-    fontSize: 12,
   },
-  tagTextActive: {
+  categoryChipTextActive: {
     color: '#fff',
   },
-  saveButton: {
+  publishButton: {
     backgroundColor: theme.colors.primary,
     borderRadius: 999,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     marginTop: 24,
   },
-  saveButtonDisabled: {
+  publishButtonDisabled: {
     opacity: 0.5,
   },
-  saveText: {
+  publishButtonText: {
     color: '#fff',
     fontWeight: '800',
     fontSize: 16,
