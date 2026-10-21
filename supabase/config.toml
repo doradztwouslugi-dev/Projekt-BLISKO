@@ -1,0 +1,14 @@
+[api]
+port = 54321
+schemas = ["public", "storage"]
+
+auth = {
+  site_url = "exp://localhost:8081",
+  additional_redirect_urls = ["exp://localhost:8081"]
+}
+
+[db]
+shadow_port = 54322
+
+[storage]
+file_size_limit = "50MiB"
