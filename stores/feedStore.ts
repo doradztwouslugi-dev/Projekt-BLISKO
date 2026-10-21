@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { supabase } from '../lib/supabase';
 
 export type FeedCategory = 'life' | 'mind' | 'hobby';
 
@@ -19,9 +21,15 @@ export type FeedPost = {
 
 type FeedState = {
   posts: FeedPost[];
-  addPost: (post: Omit<FeedPost, 'id' | 'created_at'> & { id?: string; created_at?: string }) => void;
   setPosts: (posts: FeedPost[]) => void;
+  fetchPosts: () => Promise<void>;
+  addPost: (
+    post: Omit<FeedPost, 'id' | 'created_at'> & { id?: string; created_at?: string },
+  ) => Promise<void>;
 };
+
+const makeId = () =>
+  `post-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const initialPosts: FeedPost[] = [
   {
@@ -64,20 +72,62 @@ const initialPosts: FeedPost[] = [
 
 export const useFeedStore = create<FeedState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       posts: initialPosts,
+
       setPosts: (posts) => set({ posts }),
-      addPost: (post) =>
-        set((state) => ({
-          posts: [
-            {
-              ...post,
-              id: post.id ?? Date.now().toString(),
-              created_at: post.created_at ?? new Date().toISOString(),
-            },
-            ...state.posts,
-          ],
-        })),
+
+      fetchPosts: async () => {
+        try {
+          const { data, error } = await supabase
+            .from('posts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) {
+            console.error('fetchPosts error:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            set({ posts: data as FeedPost[] });
+            return;
+          }
+
+          if (get().posts.length === 0) {
+            set({ posts: initialPosts });
+          }
+        } catch (error) {
+          console.error('fetchPosts exception:', error);
+          set({ posts: get().posts.length > 0 ? get().posts : initialPosts });
+        }
+      },
+
+      addPost: async (post) => {
+        const payload: FeedPost = {
+          ...post,
+          id: post.id ?? makeId(),
+          created_at: post.created_at ?? new Date().toISOString(),
+        };
+
+        try {
+          const { error } = await supabase.from('posts').insert(payload);
+
+          if (error) {
+            throw error;
+          }
+
+          set((state) => ({
+            posts: [payload, ...state.posts],
+          }));
+        } catch (error) {
+          console.error('addPost error:', error);
+
+          set((state) => ({
+            posts: [payload, ...state.posts],
+          }));
+        }
+      },
     }),
     {
       name: 'wokol-ciebie-feed',
