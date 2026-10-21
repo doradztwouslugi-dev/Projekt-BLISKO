@@ -10,10 +10,8 @@ import {
   View,
 } from 'react-native';
 
-import { theme } from '../theme';
 import { strings } from '../i18n/pl';
-import { useOnboardingStore } from '../stores/onboardingStore';
-import { useUserStore } from '../stores/userStore';
+import { theme } from '../theme';
 
 const tagGroups = [
   { id: 'a', label: 'Chcę wyjść z domu', subtitle: 'Poznać sąsiadów' },
@@ -36,45 +34,35 @@ const interestTags = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { draft, setIntent, toggleTag, setName, setAge, setGender, reset } = useOnboardingStore();
-  const [step, setStep] = useState(1);
+  const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<string | null>('K');
 
-  const canContinueStepOne = Boolean(draft.intentId);
-  const canContinueStepTwo = draft.selectedTags.length > 0;
-  const canContinueStepThree =
-    draft.name.trim().length > 0 && draft.age.trim().length > 0 && draft.gender !== null;
+  const selectedCount = selectedTags.length;
 
-  const headerText = useMemo(() => {
-    if (step === 1) return strings.onboarding.title;
-    if (step === 2) return strings.onboarding.interests;
-    return strings.onboarding.login;
-  }, [step]);
+  const canContinueStepOne = Boolean(selectedIntent);
+  const canContinueStepTwo = selectedCount > 0;
+  const canContinueStepThree = name.trim().length > 0 && age.trim().length > 0 && gender !== null;
 
-  const handleFinish = () => {
-    useUserStore.getState().setOnboarding({
-      first_name: draft.name.trim(),
-      birth_year: Number(draft.age),
-      gender: draft.gender ?? 'O',
-      onboarding_completed: true,
-    });
-
-    reset();
-    router.replace('/(tabs)');
+  const toggleTag = (id: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(id) ? prev.filter((tag) => tag !== id) : [...prev, id],
+    );
   };
 
   const renderSelection = () => (
     <View style={styles.intentList}>
       {tagGroups.map((item) => {
-        const active = draft.intentId === item.id;
+        const active = selectedIntent === item.id;
         return (
           <Pressable
             key={item.id}
             style={[styles.intentCard, active && styles.intentCardActive]}
-            onPress={() => setIntent(item.id)}
+            onPress={() => setSelectedIntent(item.id)}
           >
-            <View style={styles.intentBadge}>
-              <Text style={styles.intentBadgeText}>☕</Text>
-            </View>
+            <View style={styles.intentBadge}><Text style={styles.intentBadgeText}>☕</Text></View>
             <View style={styles.intentContent}>
               <Text style={styles.intentTitle}>{item.label}</Text>
               <Text style={styles.intentSubtitle}>{item.subtitle}</Text>
@@ -88,22 +76,25 @@ export default function OnboardingScreen() {
   const renderTags = () => (
     <View style={styles.tagsWrap}>
       {interestTags.map((tag) => {
-        const active = draft.selectedTags.includes(tag.id);
+        const active = selectedTags.includes(tag.id);
         return (
           <Pressable
             key={tag.id}
             style={[styles.tagChip, active && styles.tagChipActive]}
             onPress={() => toggleTag(tag.id)}
           >
-            <Text style={styles.tagLabel}>
-              {tag.emoji} {tag.label}
-            </Text>
+            <Text style={styles.tagLabel}>{tag.emoji} {tag.label}</Text>
             <Text style={[styles.tagCount, active && styles.tagCountActive]}>{`+${tag.count}`}</Text>
           </Pressable>
         );
       })}
     </View>
   );
+
+  const headerText = useMemo(() => {
+    if (!selectedIntent) return strings.onboarding.title;
+    return strings.onboarding.title;
+  }, [selectedIntent]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -113,78 +104,59 @@ export default function OnboardingScreen() {
         <Text style={styles.heroTitle}>{headerText}</Text>
         <Text style={styles.heroSubtitle}>{strings.onboarding.subtitle}</Text>
 
-        {step === 1 && renderSelection()}
+        {!selectedIntent ? renderSelection() : null}
 
-        {step === 2 && (
+        {selectedIntent ? (
           <>
             <Text style={styles.sectionTitle}>{strings.onboarding.interests}</Text>
             {renderTags()}
+            <Pressable
+              style={[styles.primaryButton, !canContinueStepTwo && styles.primaryButtonDisabled]}
+              disabled={!canContinueStepTwo}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.primaryButtonText}>{strings.common.next}</Text>
+            </Pressable>
           </>
-        )}
-
-        {step === 3 && (
-          <View style={styles.loginSection}>
-            <Text style={styles.sectionTitle}>{strings.onboarding.login}</Text>
-            <Text style={styles.formLabel}>{strings.onboarding.name}</Text>
-            <Text style={styles.textInput}>{draft.name || 'Imię'}</Text>
-            <Text style={styles.formLabel}>{strings.onboarding.age}</Text>
-            <Text style={styles.textInput}>{draft.age || 'Wiek'}</Text>
-            <Text style={styles.formLabel}>{strings.onboarding.gender}</Text>
-            <View style={styles.genderRow}>
-              {['K', 'M', 'I'].map((value) => {
-                const normalized = value === 'K' ? 'F' : value === 'M' ? 'M' : 'O';
-                const active = draft.gender === normalized;
-                return (
-                  <Pressable
-                    key={value}
-                    style={[styles.genderButton, active && styles.genderButtonActive]}
-                    onPress={() => setGender(normalized as 'F' | 'M' | 'O')}
-                  >
-                    <Text style={[styles.genderText, active && styles.genderTextActive]}>
-                      {value === 'K' ? 'Kobieta' : value === 'M' ? 'Mężczyzna' : 'Inna'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {step === 1 && (
+        ) : (
           <Pressable
             style={[styles.primaryButton, !canContinueStepOne && styles.primaryButtonDisabled]}
             disabled={!canContinueStepOne}
-            onPress={() => setStep(2)}
+            onPress={() => setSelectedIntent(selectedIntent ?? tagGroups[0].id)}
           >
             <Text style={styles.primaryButtonText}>{strings.common.next}</Text>
           </Pressable>
         )}
 
-        {step === 2 && (
-          <Pressable
-            style={[styles.primaryButton, !canContinueStepTwo && styles.primaryButtonDisabled]}
-            disabled={!canContinueStepTwo}
-            onPress={() => setStep(3)}
-          >
-            <Text style={styles.primaryButtonText}>{strings.common.next}</Text>
-          </Pressable>
-        )}
-
-        {step === 3 && (
-          <Pressable
-            style={[styles.primaryButton, !canContinueStepThree && styles.primaryButtonDisabled]}
-            disabled={!canContinueStepThree}
-            onPress={handleFinish}
-          >
-            <Text style={styles.primaryButtonText}>{strings.onboarding.loginButton}</Text>
-          </Pressable>
-        )}
-
-        {step > 1 && (
-          <Pressable style={styles.secondaryLink} onPress={() => setStep((prev) => Math.max(1, prev - 1))}>
-            <Text style={styles.secondaryLinkText}>{strings.common.back}</Text>
-          </Pressable>
-        )}
+        {selectedIntent && canContinueStepTwo ? (
+          <View style={styles.loginSection}>
+            <Text style={styles.sectionTitle}>{strings.onboarding.login}</Text>
+            <Text style={styles.formLabel}>{strings.onboarding.name}</Text>
+            <Text style={styles.textInput}>{name || 'Imię'}</Text>
+            <Text style={styles.formLabel}>{strings.onboarding.age}</Text>
+            <Text style={styles.textInput}>{age || 'Wiek'}</Text>
+            <View style={styles.genderRow}>
+              {['K', 'M', 'I'].map((value) => (
+                <Pressable
+                  key={value}
+                  onPress={() => setGender(value)}
+                  style={[styles.genderButton, gender === value && styles.genderButtonActive]}
+                >
+                  <Text style={[styles.genderText, gender === value && styles.genderTextActive]}>
+                    {value === 'K' ? 'Kobieta' : value === 'M' ? 'Mężczyzna' : 'Inna'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              style={[styles.primaryButton, !canContinueStepThree && styles.primaryButtonDisabled]}
+              disabled={!canContinueStepThree}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.primaryButtonText}>{strings.onboarding.loginButton}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <Link href="/(tabs)" style={styles.secondaryLink}>
           <Text style={styles.secondaryLinkText}>{strings.common.preview}</Text>
