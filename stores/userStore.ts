@@ -8,6 +8,9 @@ export type AuthUser = {
   email?: string | null;
   first_name?: string | null;
   onboarding_completed?: boolean;
+  gender?: 'F' | 'M' | 'O' | null;
+  birth_year?: number | null;
+  home_radius_km?: number | null;
 };
 
 type UserState = {
@@ -16,6 +19,7 @@ type UserState = {
   hydrated: boolean;
   setUser: (user: AuthUser | null) => void;
   setSession: (session: Session | null) => void;
+  setOnboarding: (payload: Partial<AuthUser>) => void;
   clearUser: () => void;
   setHydrated: (value: boolean) => void;
 };
@@ -28,6 +32,12 @@ export const useUserStore = create<UserState>()(
       hydrated: false,
       setUser: (user) => set({ user }),
       setSession: (session) => set({ session }),
+      setOnboarding: (payload) =>
+        set((state) => ({
+          user: state.user
+            ? { ...state.user, ...payload, onboarding_completed: true }
+            : { id: 'local-user', ...payload, onboarding_completed: true },
+        })),
       clearUser: () => set({ user: null, session: null }),
       setHydrated: (value) => set({ hydrated: value }),
     }),
