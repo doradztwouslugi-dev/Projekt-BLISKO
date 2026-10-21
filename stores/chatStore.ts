@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { supabase } from '../lib/supabase';
 
 export type ChatMessage = {
   id: string;
@@ -22,10 +24,15 @@ export type Conversation = {
 type ChatState = {
   conversations: Conversation[];
   messagesByConversation: Record<string, ChatMessage[]>;
-  openConversation: (postId: string, postTitle: string, participantId: string) => void;
-  sendMessage: (conversationId: string, senderId: string, text: string) => void;
+  openConversation: (postId: string, postTitle: string, participantId: string) => Promise<void>;
+  sendMessage: (conversationId: string, senderId: string, text: string) => Promise<void>;
+  fetchConversations: () => Promise<void>;
+  fetchMessagesForConversation: (conversationId: string) => Promise<void>;
   getMessages: (conversationId: string) => ChatMessage[];
 };
+
+const makeId = (prefix: string) =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const seedConversations: Conversation[] = [
   {
@@ -62,14 +69,18 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       conversations: seedConversations,
       messagesByConversation: seedMessages,
-      openConversation: (postId, postTitle, participantId) => {
-        const state = get();
-        const existing = state.conversations.find((c) => c.post_id === postId);
 
-        if (existing) return;
+      openConversation: async (postId, postTitle, participantId) => {
+        const state = get();
+
+        const existing = state.conversations.find((conversation) => conversation.post_id === postId);
+
+        if (existing) {
+          return;
+        }
 
         const newConversation: Conversation = {
-          id: `conv-${Date.now()}`,
+          id: makeId('conv'),
           post_id: postId,
           participant_ids: ['me', participantId],
           last_message_at: new Date().toISOString(),
@@ -84,13 +95,34 @@ export const useChatStore = create<ChatState>()(
             [newConversation.id]: [],
           },
         }));
+
+        try {
+          const { error } = await supabase.from('conversations').insert({
+            id: newConversation.id,
+            post_id: postId,
+            participant_ids: ['me', participantId],
+            last_message_at: newConversation.last_message_at,
+            created_at: newConversation.created_at,
+            title: postTitle,
+          });
+
+          if (error) {
+            console.error('openConversation supabase error:', error);
+          }
+        } catch (error) {
+          console.error('openConversation exception:', error);
+        }
       },
-      sendMessage: (conversationId, senderId, text) => {
+
+      sendMessage: async (conversationId, senderId, text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+
         const message: ChatMessage = {
-          id: `msg-${Date.now()}`,
+          id: makeId('msg'),
           conversation_id: conversationId,
           sender_id: senderId,
-          text,
+          text: trimmed,
           created_at: new Date().toISOString(),
         };
 
@@ -99,13 +131,79 @@ export const useChatStore = create<ChatState>()(
             ...prev.messagesByConversation,
             [conversationId]: [...(prev.messagesByConversation[conversationId] ?? []), message],
           },
-          conversations: prev.conversations.map((conv) =>
-            conv.id === conversationId
-              ? { ...conv, last_message_at: message.created_at }
-              : conv,
+          conversations: prev.conversations.map((conversation) =>
+            conversation.id === conversationId
+              ? {
+                  ...conversation,
+                  last_message_at: message.created_at,
+                }
+              : conversation,
           ),
         }));
+
+        try {
+          const { error } = await supabase.from('messages').insert({
+            id: message.id,
+            conversation_id: message.conversation_id,
+            sender_id: message.sender_id,
+            text: message.text,
+            created_at: message.created_at,
+          });
+
+          if (error) {
+            console.error('sendMessage supabase error:', error);
+          }
+        } catch (error) {
+          console.error('sendMessage exception:', error);
+        }
       },
+
+      fetchConversations: async () => {
+        try {
+          const { data, error } = await supabase
+            .from('conversations')
+            .select('*')
+            .order('last_message_at', { ascending: false });
+
+          if (error) {
+            console.error('fetchConversations error:', error);
+            return;
+          }
+
+          if (data && data.length > 0) {
+            set({ conversations: data as Conversation[] });
+          }
+        } catch (error) {
+          console.error('fetchConversations exception:', error);
+        }
+      },
+
+      fetchMessagesForConversation: async (conversationId) => {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+
+          if (error) {
+            console.error('fetchMessagesForConversation error:', error);
+            return;
+          }
+
+          if (data) {
+            set((prev) => ({
+              messagesByConversation: {
+                ...prev.messagesByConversation,
+                [conversationId]: data as ChatMessage[],
+              },
+            }));
+          }
+        } catch (error) {
+          console.error('fetchMessagesForConversation exception:', error);
+        }
+      },
+
       getMessages: (conversationId) => get().messagesByConversation[conversationId] ?? [],
     }),
     {
