@@ -1,12 +1,51 @@
-export const theme = {
-  colors: {
-    background: '#fff6ec',
-    surface: '#ffffff',
-    text: '#2b2340',
-    muted: '#7b7391',
-    primary: '#ff5d5d',
-    accent: '#6c5ce7',
-    line: '#f0e4d6',
-    success: '#2bb673',
+export const strings = {
+  common: {
+    next: 'Dalej',
+    preview: 'Podgląd',
+    cancel: 'Anuluj',
+    save: 'Zapisz',
+    back: 'Wróć',
+    sharePin: 'Udostępnij pinezkę',
+    confirm: 'Potwierdź spotkanie',
+    report: 'Zgłoś',
+  },
+  onboarding: {
+    title: 'Znajdź ludzi wokół siebie',
+    step: 'Krok 1 z 3',
+    subtitle: 'Wybierz, czego szukasz i co Cię interesuje.',
+    interests: 'Twoje zainteresowania',
+    login: 'Dane osobowe',
+    name: 'Imię',
+    age: 'Wiek',
+    gender: 'Płeć',
+    loginButton: 'Zapisz i przejdź dalej',
+    location: 'Miejsce zamieszkania',
+    radius: 'Promień',
+  },
+  home: {
+    nearby: 'W pobliżu',
+    newPost: 'Nowy post',
+    addPost: '＋ Dodaj co robisz / Kogo szukasz',
+    location: '📍 Oleśnica',
+    tabNearby: 'Wokół',
+    tabProfile: 'Profil',
+  },
+  feed: {
+    all: '✨ Wszystko',
+    life: '👶 Etapy życia',
+    mind: '💬 Dyskusje',
+    hobby: '🎲 Hobby',
+    write: 'Napisz',
+  },
+  profile: {
+    title: 'Profil',
+    hello: 'Cześć,',
+    lookingForCompany: 'Szukam towarzystwa',
+    quietHours: 'Godziny ciszy',
+    sameGender: 'Dopasowanie do tej samej płci',
+    interests: 'Moje zainteresowania',
+    pushPreview: '🔔 Zasymuluj powiadomienie push',
   },
 };
+
+export default strings;
