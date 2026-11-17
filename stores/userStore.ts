@@ -3,6 +3,8 @@ import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type AccessPlan = 'free' | 'plus' | 'premium';
+
 export type AuthUser = {
   id: string;
   email?: string | null;
@@ -20,9 +22,11 @@ export type AuthUser = {
 type UserState = {
   user: AuthUser | null;
   session: Session | null;
+  accessPlan: AccessPlan;
   hydrated: boolean;
   setUser: (user: AuthUser | null) => void;
   setSession: (session: Session | null) => void;
+  setAccessPlan: (accessPlan: AccessPlan) => void;
   setOnboarding: (payload: Partial<AuthUser>) => void;
   updateUser: (payload: Partial<AuthUser>) => void;
   clearUser: () => void;
@@ -34,11 +38,14 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       user: null,
       session: null,
+      accessPlan: 'free',
       hydrated: false,
 
       setUser: (user) => set({ user }),
 
       setSession: (session) => set({ session }),
+
+      setAccessPlan: (accessPlan) => set({ accessPlan }),
 
       setOnboarding: (payload) =>
         set((state) => ({
@@ -54,7 +61,7 @@ export const useUserStore = create<UserState>()(
             : { id: 'local-user', ...payload },
         })),
 
-      clearUser: () => set({ user: null, session: null }),
+      clearUser: () => set({ user: null, session: null, accessPlan: 'free' }),
 
       setHydrated: (value) => set({ hydrated: value }),
     }),
