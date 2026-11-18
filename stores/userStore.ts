@@ -3,6 +3,10 @@ import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import type { ConversationStart } from './accessPlans';
+
+export type AccessPlan = 'free' | 'plus' | 'premium';
+
 export type AuthUser = {
   id: string;
   email?: string | null;
@@ -20,9 +24,14 @@ export type AuthUser = {
 type UserState = {
   user: AuthUser | null;
   session: Session | null;
+  accessPlan: AccessPlan;
+  accountCreatedAt: string | null;
+  conversationStarts: ConversationStart[];
   hydrated: boolean;
   setUser: (user: AuthUser | null) => void;
   setSession: (session: Session | null) => void;
+  setAccessPlan: (accessPlan: AccessPlan) => void;
+  recordConversationStart: (postId: string) => void;
   setOnboarding: (payload: Partial<AuthUser>) => void;
   updateUser: (payload: Partial<AuthUser>) => void;
   clearUser: () => void;
@@ -34,17 +43,47 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       user: null,
       session: null,
+      accessPlan: 'free',
+      accountCreatedAt: null,
+      conversationStarts: [],
       hydrated: false,
 
-      setUser: (user) => set({ user }),
+      setUser: (user) =>
+        set((state) => {
+          if (!user) return { user: null };
+          const isNewAccount = state.user?.id !== user.id;
+          return {
+            user,
+            accountCreatedAt: isNewAccount ? new Date().toISOString() : state.accountCreatedAt ?? new Date().toISOString(),
+            accessPlan: isNewAccount ? 'free' : state.accessPlan,
+          };
+        }),
 
       setSession: (session) => set({ session }),
+
+      // This plan selector is for local prototype testing only; it is not purchase validation.
+      setAccessPlan: (accessPlan) => set({ accessPlan }),
+
+      recordConversationStart: (postId) =>
+        set((state) => {
+          const userId = state.user?.id;
+          if (!userId || state.conversationStarts.some((start) => start.userId === userId && start.postId === postId)) {
+            return state;
+          }
+          return {
+            conversationStarts: [
+              ...state.conversationStarts,
+              { userId, postId, createdAt: new Date().toISOString() },
+            ],
+          };
+        }),
 
       setOnboarding: (payload) =>
         set((state) => ({
           user: state.user
             ? { ...state.user, ...payload, onboarding_completed: true }
             : { id: 'local-user', ...payload, onboarding_completed: true },
+          accountCreatedAt: state.accountCreatedAt ?? new Date().toISOString(),
         })),
 
       updateUser: (payload) =>
@@ -52,9 +91,10 @@ export const useUserStore = create<UserState>()(
           user: state.user
             ? { ...state.user, ...payload }
             : { id: 'local-user', ...payload },
+          accountCreatedAt: state.accountCreatedAt ?? new Date().toISOString(),
         })),
 
-      clearUser: () => set({ user: null, session: null }),
+      clearUser: () => set({ user: null, session: null, accessPlan: 'free', accountCreatedAt: null }),
 
       setHydrated: (value) => set({ hydrated: value }),
     }),

@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { getConversationLimitStatus } from './accessPlans';
+import { useUserStore } from './userStore';
 import { supabase } from '../lib/supabase';
 
 export type ChatMessage = {
@@ -21,10 +23,14 @@ export type Conversation = {
   title?: string;
 };
 
+type OpenConversationResult =
+  | { ok: true; conversationId: string }
+  | { ok: false; reason: 'weekly_limit' | 'active_limit' | 'sign_in_required' };
+
 type ChatState = {
   conversations: Conversation[];
   messagesByConversation: Record<string, ChatMessage[]>;
-  openConversation: (postId: string, postTitle: string, participantId: string) => Promise<void>;
+  openConversation: (postId: string, postTitle: string, participantId: string) => Promise<OpenConversationResult>;
   sendMessage: (conversationId: string, senderId: string, text: string) => Promise<void>;
   fetchConversations: () => Promise<void>;
   fetchMessagesForConversation: (conversationId: string) => Promise<void>;
@@ -71,18 +77,26 @@ export const useChatStore = create<ChatState>()(
       messagesByConversation: seedMessages,
 
       openConversation: async (postId, postTitle, participantId) => {
-        const state = get();
+        const existing = get().conversations.find((conversation) => conversation.post_id === postId);
+        if (existing) return { ok: true, conversationId: existing.id };
 
-        const existing = state.conversations.find((conversation) => conversation.post_id === postId);
+        const userState = useUserStore.getState();
+        const userId = userState.user?.id;
+        if (!userId) return { ok: false, reason: 'sign_in_required' };
 
-        if (existing) {
-          return;
-        }
+        const accountCreatedAt = userState.accountCreatedAt ?? new Date().toISOString();
+        const limitStatus = getConversationLimitStatus({
+          plan: userState.accessPlan,
+          userId,
+          accountCreatedAt,
+          starts: userState.conversationStarts,
+        });
+        if (!limitStatus.allowed) return { ok: false, reason: limitStatus.reason! };
 
         const newConversation: Conversation = {
           id: makeId('conv'),
           post_id: postId,
-          participant_ids: ['me', participantId],
+          participant_ids: [userId, participantId],
           last_message_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           title: postTitle,
@@ -95,23 +109,24 @@ export const useChatStore = create<ChatState>()(
             [newConversation.id]: [],
           },
         }));
+        userState.recordConversationStart(postId);
 
         try {
           const { error } = await supabase.from('conversations').insert({
             id: newConversation.id,
             post_id: postId,
-            participant_ids: ['me', participantId],
+            participant_ids: [userId, participantId],
             last_message_at: newConversation.last_message_at,
             created_at: newConversation.created_at,
             title: postTitle,
           });
 
-          if (error) {
-            console.error('openConversation supabase error:', error);
-          }
+          if (error) console.error('openConversation supabase error:', error);
         } catch (error) {
           console.error('openConversation exception:', error);
         }
+
+        return { ok: true, conversationId: newConversation.id };
       },
 
       sendMessage: async (conversationId, senderId, text) => {
@@ -133,10 +148,7 @@ export const useChatStore = create<ChatState>()(
           },
           conversations: prev.conversations.map((conversation) =>
             conversation.id === conversationId
-              ? {
-                  ...conversation,
-                  last_message_at: message.created_at,
-                }
+              ? { ...conversation, last_message_at: message.created_at }
               : conversation,
           ),
         }));
@@ -149,10 +161,7 @@ export const useChatStore = create<ChatState>()(
             text: message.text,
             created_at: message.created_at,
           });
-
-          if (error) {
-            console.error('sendMessage supabase error:', error);
-          }
+          if (error) console.error('sendMessage supabase error:', error);
         } catch (error) {
           console.error('sendMessage exception:', error);
         }
@@ -169,10 +178,7 @@ export const useChatStore = create<ChatState>()(
             console.error('fetchConversations error:', error);
             return;
           }
-
-          if (data && data.length > 0) {
-            set({ conversations: data as Conversation[] });
-          }
+          if (data && data.length > 0) set({ conversations: data as Conversation[] });
         } catch (error) {
           console.error('fetchConversations exception:', error);
         }
@@ -190,7 +196,6 @@ export const useChatStore = create<ChatState>()(
             console.error('fetchMessagesForConversation error:', error);
             return;
           }
-
           if (data) {
             set((prev) => ({
               messagesByConversation: {
